@@ -1,10 +1,55 @@
-# UVM evaluation benchmarks
+# Unified Virtual Memory (UVM) fault and batch analysis
 
 # Overview
-Data in the paper is collected through driver modifications. There are two types of data presented: batch, and fault (access pattern).
-We provided two drivers to collect these data separately due to the overhead of fault data collection. The 
-instructions for swapping the driver out, building and running applications, system specifications, and
-other information are below.
+This repository serves as supplementary material for the SC21 paper "In-Depth
+Analyses of Unified Virtual Memory System for GPU Accelerated Computing" as well
+as several components of the IPDPS21 paper "Demystifying GPU UVM Cost with Deep
+Runtime and Workload Analysis."
+
+The code enables collection of batch and fault (access pattern) data by making
+modifications to the nvidia kernel drivers. Additionally, we enable the data
+collection and analysis on several existing benchmarks along with tools that
+enable data processing and analysis.
+
+Please cite, \dots.
+
+## Installation
+To enable logging information, the driver with added logging features must be
+installed. Additionally, it may need certain parameters to function correctly.
+This requires root permission in most cases.
+
+There are two drivers provided. One collects produces "batch" experiment data
+from the paper, and the other produces "fault" experiment data from the paper
+(access patterns). These drivers can be found in `drivers` directory.
+
+Notes: The following assumes that the appropriate NVIDIA driver is already
+installed. These steps will replace the  existing UVM driver for convenience
+over reboot and multiple experiments. The base UVM driver will need to  be
+reinstalled to revert to the original system status. Full system specifications
+are at the end of this file.
+
+### Build
+```
+cd drivers/*-NVIDIA-Linux-x86_64-460.74.27.04/kernel/
+make modules
+sudo make modules_install
+```
+
+### Load
+```
+sudo rmmod nvidia_uvm
+sudo modprobe nvidia_uvm
+```
+
+Note: turn on/off prefetching with 1/0 and/or maximum batch size using arguments
+as below:
+
+```
+sudo modprobe nvidia-uvm uvm_perf_prefetch_enable={1,0}
+sudo modprobe nvidia-uvm uvm_perf_fault_batch_count=${batch_size}
+```
+
+# Directory structure
 
 ## benchmarksv3
     - Contains all benchmarks in paper and some additional examples
@@ -17,54 +62,22 @@ other information are below.
     - `syslogger` contains the tool for parsing data out of the system log
     - `plotv2` contains .sh scripts that operate the .py scripts for reproducing plots and analysis from the paper if data is available
 
-## Swapping the driver
-To enable logging information, the driver with added logging features must be installed. Additionally, it may
-need certain parameters to function correctly. This requires root permission in most cases.\
-There are two drivers provided. One collects produces "batch" experiment data from the paper, and the other produces
-"fault" experiment data from the paper (access patterns). These drivers are at:
+## Data Collection
+The scripts will reproduce the experiments as they were performed for use in the
+paper, including data not used or omitted for space.
 
-```
-../drivers/batchd-NVIDIA-Linux-x86\_64-460.74.27.04/kernel/
-```
-
-and
-
-```
-../drivers/faults-NVIDIA-Linux-x86\_64-460.74.27.04/kernel/
-```
-
-respectively.
-
-Notes: The following assumes that the appropriate NVIDIA driver is already installed. These steps will replace the 
-existing UVM driver for convenience over reboot and multiple experiments. The base UVM driver will need to 
-be reinstalled to revert to the original system status. Full system specifications are at the end of this file.
-
-### Build
-```
-cd drivers/*-NVIDIA-Linux-x86_64-460.74.27.04/kernel/\
-make modules\
-sudo make modules_install
-```
-
-### Load
-```
-sudo rmmod nvidia_uvm\
-sudo modprobe nvidia_uvm\
-Note: turn on/off prefetching with 1/0 and/or maximum batch size using arguments as below:\
-sudo modprobe nvidia-uvm uvm_perf_prefetch_enable={1,0}\
-sudo modprobe nvidia-uvm uvm_perf_fault_batch_count=${batch_size}
-```
-
-## Applications
-The scripts will reproduce the experiments as they were performed for use in the paper, including data not used or omitted for space.\
 We will document them in detail here:
 
 ### sgemm
-benchmarks/cublas\
-description: sgemm from CUBLAS libary.\
-build: make\
-run: ./matrixMul2 -wA=${psize} -hA=${psize} -wB=${psize} -hB=${psize}\
-data sets: programmatically generated - 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768
+Description: sgemm from CUBLAS libary.
+datasets: programmatically generated - 4096, 8192, 12288, 16384, 20480, 24576, 28672, 32768
+
+```
+cd benchmarks/cublas
+make
+./matrixMul2 -wA=${psize} -hA=${psize} -wB=${psize} -hB=${psize}
+```
+
 
 ### stream
 benchmarks/stream\
@@ -82,9 +95,9 @@ data sets: programmatically generated - 1048576, 8388608
 
 ### random access pattern
 benchmarks/random\
-description: accesses each page randomly, uniquely, with the same data set as linear/regular\
-build: make DEFS=-DPNUM=$psize\
-run: ./page\
+description: accesses each page randomly, uniquely, with the same data set as linear/regular
+build: make DEFS=-DPNUM=$psize
+run: ./page
 data sets: programmatically generated - 1048576, 8388608
 
 ### hpgmg
